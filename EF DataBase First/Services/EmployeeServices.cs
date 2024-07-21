@@ -1,0 +1,383 @@
+﻿using Concerns;
+using System.Globalization;
+using System.Text.RegularExpressions;
+using Utility;
+using Data;
+using Services.Interfaces;
+using Data.Interfaces;
+
+namespace Services
+{
+
+    public class EmployeeManagementMenu : IEmployeeService
+    {
+        IEmployeeData empData = new EmployeeData();
+
+        // Employee Management starts here
+        public void EmployeeManagement()
+        {
+            bool isEmployeeManagement = true;
+            while (isEmployeeManagement)
+            {
+                Console.ForegroundColor = ConsoleColor.White;
+                Console.WriteLine(Prompts.EmployeeMenu);
+                Console.Write(Prompts.SelectedOption);
+                int employeeMenuChoice;
+                if (!int.TryParse(Console.ReadLine(), out employeeMenuChoice) || employeeMenuChoice < 1 || employeeMenuChoice > 6)
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine(Prompts.InvalidMessage);
+                    continue;
+                }
+                switch ((EmployeeMenu)employeeMenuChoice)
+                {
+                    case EmployeeMenu.AddEmployee:
+                        AddEmployee();
+                        break;
+                    case EmployeeMenu.ViewAllEmployees:
+                        ViewAllEmployees();
+                        break;
+                    case EmployeeMenu.ViewAnEmployee:
+                        ViewAnEmployee();
+                        break;
+                    case EmployeeMenu.EditEmployee:
+                        EditEmployee();
+                        break;
+                    case EmployeeMenu.DeleteEmployee:
+                        DeleteEmployee();
+                        break;
+                    case EmployeeMenu.IsEmployeeManagement:
+                        isEmployeeManagement = false;
+                        break;
+                    default:
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine(Prompts.InvalidMessage);
+                        break;
+                }
+            }
+        }
+        // Employmee Management ends here
+
+        // Adding an Employee
+        private void AddEmployee()
+        {
+            Console.ForegroundColor = ConsoleColor.White;
+            Console.WriteLine("\nEnter employee details:");
+            string? id = InputValidation("id", "Enter ID of the Employee: ");
+            string? firstName = InputValidation("string", "Enter First Name of the Employee: ");
+            string? lastName = InputValidation("string", "Enter Last Name of the Employee: ");
+            DateTime dateOfBirth = DateValidation("Enter Date of Birth (DD-MM-YYYY) of the Employee: ");
+            string? Email = InputValidation("email", "Enter Email of the Employee: ");
+            string? Phone = InputValidation("phone", "Enter Phone number of the Employee: ");
+            DateTime joinDate = DateValidation("Enter Joining Date (DD-MM-YYYY) of the Employee: ", false);
+            string? location = InputValidation("string", "Enter Location of the Employee: ");
+            string? jobTitle = InputValidation("string", "Enter Job Title of the Employee: ");
+            string? department = InputValidation("string", "Enter Department of the Employee: ");
+            string? manager = InputValidation("stringornull", "Enter Manager name for the Employee: ");
+            string? project = InputValidation("stringornull", "Enter Project Name for the Employee: ");
+
+            Employee employees = new Employee { ID = id, FirstName = firstName, LastName = lastName, DateOfBirth = dateOfBirth, Email = Email, Phone = Phone, JoinDate = joinDate, Location = location, JobTitle = jobTitle, Department = department, Manager = manager, Project = project };
+            empData.AddingEmployee(ConvertToDataEmployee(employees));
+
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine(Prompts.EmployeeAddedMessage);
+        }
+        // Adding employee ends here
+
+        // Input validations starts here
+        public string? InputValidation(string inputField, string prompt)
+        {
+            string? pattern;
+            string? input = null;
+
+            switch (inputField)
+            {
+                case "id":
+                    pattern = @"^TZ\d{4}$";
+                    input = IsValid(inputField, prompt, pattern);
+                    break;
+                case "string":
+                    pattern = @"^[A-Za-z\s]+$";
+                    input = IsValid(inputField, prompt, pattern);
+                    break;
+                case "email":
+                    pattern = @"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$";
+                    input = IsValid(inputField, prompt, pattern);
+                    break;
+                case "phone":
+                    pattern = @"^\d{10}$";
+                    input = IsValid(inputField, prompt, pattern);
+                    break;
+                case "stringornull":
+                    pattern = @"^[A-Za-z\s.]+$";
+                    input = IsValid(inputField, prompt, pattern, true);
+                    break;
+                default:
+                    Console.WriteLine("Invalid");
+                    break;
+            }
+            return input;
+        }
+
+        private string? IsValid(string inputField, string prompt, string pattern, bool skipValidations = false)
+        {
+            string? input = null;
+            while (true)
+            {
+                Console.ForegroundColor = ConsoleColor.White;
+                Console.Write(prompt);
+                input = Console.ReadLine();
+                if (inputField == "id" && !string.IsNullOrEmpty(input) && Regex.IsMatch(input, pattern))
+                {
+                    if (empData.IdValidation(input) || input == "TZ0000")
+                    {
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine("Please enter a unique ID.");
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+                else if (!string.IsNullOrEmpty(input) && Regex.IsMatch(input, pattern))
+                {
+                    break;
+                }
+                else if (skipValidations && string.IsNullOrEmpty(input))
+                {
+                    break;
+                }
+                else
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine(string.Format(Prompts.ValidationErrorMessage, inputField));
+                }
+            }
+            return input;
+        }
+
+
+        private DateTime DateValidation(string prompt, bool allowNullInput = true)
+        {
+            DateTime date;
+            while (true)
+            {
+                Console.ForegroundColor = ConsoleColor.White;
+                Console.Write(prompt);
+                string? input = Console.ReadLine();
+                if (string.IsNullOrWhiteSpace(input))
+                {
+                    if (allowNullInput)
+                    {
+                        return new DateTime(1800, 01, 01);
+                    }
+                    else
+                    {
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine(Prompts.DateErrorMessage);
+                        continue;
+                    }
+                }
+                else if (DateTime.TryParseExact(input, "dd-MM-yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out date))
+                {
+                    return date;
+                }
+                else
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine(Prompts.DateErrorMessage);
+                }
+            }
+        }
+        // Input validations ends here
+        // Add employees ends here
+
+        // View all employees starts here
+        private void ViewAllEmployees()
+        {
+            Console.ForegroundColor = ConsoleColor.White;
+            List<Employee> employees = ConvertToConcernsEmployee(empData.DisplayEmployees(null));
+            if (employees.Any())
+            {
+                Console.WriteLine();
+                int count = 1;
+                foreach (var employee in employees)
+                {
+                    string name = employee.FirstName + " " + employee.LastName;
+                    Console.WriteLine($"{count})ID: {employee.ID}, Name: {name}, JobTitle: {employee.JobTitle}, Department: {employee.Department}, DateOfBirth: {employee.DateOfBirth.ToString("dd-MM-yyyy")}, Email: {employee.Email}, Location: {employee.Location}, Joining Date: {employee.JoinDate.ToString("dd-MM-yyyy")}, Manager Name: {employee.Manager}, Project Name: {employee.Project}");
+                    Console.WriteLine("====================================================================================================================================================");
+                    count++;
+                }
+            }
+            else
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine(Prompts.NoEmployeesMessage);
+            }
+        }
+        // View all employees ends here
+
+        // Search for an employee starts here
+        private void ViewAnEmployee()
+        {
+            Console.ForegroundColor = ConsoleColor.White;
+            Console.Write(Prompts.EmployeeIDInputMessage);
+            string? employeeIdToView = Console.ReadLine();
+            List<Employee> employees = ConvertToConcernsEmployee(empData.DisplayEmployees(employeeIdToView)); 
+            Employee? employee = employees.SingleOrDefault();
+            if (employee != null)
+            {
+                Console.WriteLine();
+                string name = employee.FirstName + " " + employee.LastName;
+                Console.WriteLine($"ID: {employee.ID}, Name: {name}, JobTitle: {employee.JobTitle}, Department: {employee.Department}, DateOfBirth: {employee.DateOfBirth.ToString("dd-MM-yyyy")}, Email: {employee.Email}, Location: {employee.Location}, Joining Date: {employee.JoinDate.ToString("dd-MM-yyyy")}, Manager Name: {employee.Manager}, Project Name: {employee.Project}");
+            }
+            else
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine(Prompts.EmployeeIDErrorMessage);
+            }
+        }
+        // Search for an employee ends here
+
+        // Edit employee details starts here
+        private void EditEmployee()
+        {
+            Console.ForegroundColor = ConsoleColor.White;
+            Console.Write(Prompts.EmployeeIDInputMessage);
+            string? employeeIdToEdit = Console.ReadLine();
+            List<Employee> employees = ConvertToConcernsEmployee(empData.DisplayEmployees(employeeIdToEdit));
+            Employee? employee = employees.SingleOrDefault();
+            if (employee != null)
+            {
+                string name = employee.FirstName + " " + employee.LastName;
+                Console.WriteLine($"ID: {employee.ID}, Name: {name}, DateOfBirth: {employee.DateOfBirth.ToString("dd-MM-yyyy")}, Email: {employee.Email}, Phone: {employee.Phone}, JoinDate: {employee.JoinDate.ToString("dd-MM-yyyy")}, Location: {employee.Location}, JobTitle: {employee.JobTitle}, Department: {employee.Department}, Manager name: {employee.Manager}, Project name: {employee.Project}");
+
+                bool continueEditing = true;
+                while (continueEditing)
+                {
+                    Console.ForegroundColor = ConsoleColor.White;
+                    Console.WriteLine(Prompts.EditMenu);
+                    Console.Write(Prompts.SelectedOption);
+                    int editChoice;
+                    if (!int.TryParse(Console.ReadLine(), out editChoice) || editChoice < 1 || editChoice > 13)
+                    {
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine(Prompts.InvalidMessage);
+                        continue;
+                    }
+
+                    switch ((EditEmployeeMenu)editChoice)
+                    {
+                        case EditEmployeeMenu.FirstName:
+                            employee.FirstName = InputValidation("string", "Enter First Name of the Employee: ");
+                            break;
+                        case EditEmployeeMenu.LastName:
+                            employee.LastName = InputValidation("string", "Enter Last Name of the Employee: ");
+                            break;
+                        case EditEmployeeMenu.DateOfBirth:
+                            employee.DateOfBirth = DateValidation("Enter Date of Birth (DD-MM-YYYY) of the Employee: ");
+                            break;
+                        case EditEmployeeMenu.Email:
+                            employee.Email = InputValidation("email", "Enter Email of the Employee: ");
+                            break;
+                        case EditEmployeeMenu.Phone:
+                            employee.Phone = InputValidation("phone", "Enter Phone number of the Employee: ");
+                            break;
+                        case EditEmployeeMenu.JoinDate:
+                            employee.JoinDate = DateValidation("Enter Joining Date (DD-MM-YYYY) of the Employee: ", false);
+                            break;
+                        case EditEmployeeMenu.Location:
+                            employee.Location = InputValidation("string", "Enter Location of the Employee: ");
+                            break;
+                        case EditEmployeeMenu.JobTitle:
+                            employee.JobTitle = InputValidation("string", "Enter Job Title of the Employee: ");
+                            break;
+                        case EditEmployeeMenu.Department:
+                            employee.Department = InputValidation("string", "Enter Department of the Employee: ");
+                            break;
+                        case EditEmployeeMenu.Manager:
+                            employee.Manager = InputValidation("stringornull", "Enter Manager name for the Employee: ");
+                            break;
+                        case EditEmployeeMenu.Project:
+                            employee.Project = InputValidation("stringornull", "Enter Project Name for the Employee: ");
+                            break;
+                        case EditEmployeeMenu.ContinueEditing:
+                            continueEditing = false;
+                            break;
+                        default:
+                            Console.ForegroundColor = ConsoleColor.Red;
+                            Console.WriteLine(Prompts.InvalidMessage);
+                            break;
+                    }
+                }
+                empData.UpdatingAnEmployee(ConvertToDataEmployee(employee));
+            }
+            else
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine(Prompts.EmployeeIDErrorMessage);
+            }
+        }
+        // Edit employee details ends here
+
+        // Delete an Employee starts here
+        private void DeleteEmployee()
+        {
+            Console.ForegroundColor = ConsoleColor.White;
+            Console.Write(Prompts.EmployeeIDInputMessage);
+            string? employeeIdToDelete = Console.ReadLine();
+            empData.DeletingAnEmployee(employeeIdToDelete);
+
+        }
+        // Delete an employee ends here
+
+        // Converting from Concerns.Employee to Data.DataConcerns.Employee
+
+        private static Data.DataConcerns.Employee ConvertToDataEmployee(Employee concernsEmployee)
+        {
+            Data.DataConcerns.Employee dataEmployee = new Data.DataConcerns.Employee();
+            dataEmployee.Id = concernsEmployee.ID;
+            dataEmployee.FirstName = concernsEmployee.FirstName;
+            dataEmployee.LastName = concernsEmployee.LastName;
+            dataEmployee.DateOfBirth = concernsEmployee.DateOfBirth;
+            dataEmployee.Email = concernsEmployee.Email;
+            dataEmployee.Phone = concernsEmployee.Phone;
+            dataEmployee.JoinDate =  concernsEmployee.JoinDate;
+            dataEmployee.Location = concernsEmployee.Location;
+            dataEmployee.JobTitle = concernsEmployee.JobTitle;  
+            dataEmployee.Department = concernsEmployee.Department;  
+            dataEmployee.Manager = concernsEmployee.Manager;
+            dataEmployee.Project = concernsEmployee.Project;    
+            return dataEmployee;
+        }
+        // Ends here
+
+        // Converting from Data.DataConcerns.Employee to Concerns.Employee
+        private static List<Employee> ConvertToConcernsEmployee(List<Data.DataConcerns.Employee> dataEmployees)
+        {
+            List<Employee> concernsEmployees = new List<Employee>();
+
+            foreach (var dataEmployee in dataEmployees)
+            {
+                Employee concernsEmployee = new Employee();
+                concernsEmployee.ID = dataEmployee.Id;
+                concernsEmployee.FirstName = dataEmployee.FirstName;
+                concernsEmployee.LastName = dataEmployee.LastName;
+                concernsEmployee.DateOfBirth = dataEmployee.DateOfBirth;
+                concernsEmployee.Email = dataEmployee.Email;
+                concernsEmployee.Phone = dataEmployee.Phone;
+                concernsEmployee.JoinDate = dataEmployee.JoinDate;
+                concernsEmployee.Location = dataEmployee.Location;
+                concernsEmployee.JobTitle = dataEmployee.JobTitle;
+                concernsEmployee.Department = dataEmployee.Department;
+                concernsEmployee.Manager = dataEmployee.Manager;
+                concernsEmployee.Project = dataEmployee.Project;
+
+                concernsEmployees.Add(concernsEmployee);
+            }
+
+            return concernsEmployees;
+        }
+        // Ends here
+    }
+}
